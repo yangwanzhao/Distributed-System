@@ -187,18 +187,15 @@ string pickServer(string data){
   id_server = (n % num_server)+1;
   if (id_server == 1)
   {
-    // return "18.222.251.249";
-    return "localhost";
+    return "18.222.251.249";
   }
   else if (id_server == 2)
   {
-    // return "18.222.141.133";
-    return "localhost";
+    return "18.222.141.133";
   }
   else if (id_server == 3)
   {
-    // return "18.217.26.7";
-    return "localhost";
+    return "18.217.26.7";
   }
   return NULL;
 }
@@ -272,9 +269,12 @@ void echo_client(boost::asio::ip::tcp::socket &socket, string data){
 }
 
 
-void send_message(string port, string server_name, string data){
+void send_message(string port, string server_name, string data, bool specific_server){
+  if (!specific_server)
+  {
+    server_name = pickServer(data);
+  }
 
-  server_name = pickServer(data);
   cout << "send to " << server_name << endl;
   try{
       // Set up the client socket
@@ -296,6 +296,9 @@ void usage(const char *progname) {
   cout << "  Usage: " << progname << " [options]\n";
   cout << "    -p <int> : Port on which to listen (default 41100)\n";
   cout << "    -h       : print this message\n";
+  cout << "    -d       : destination address\n";
+  cout << "    -t       : test mode\n";
+  cout << "    -s       : specify dst addr(works with -d)\n";
 }
 
 int main(int argc, char *argv[]) {
@@ -303,10 +306,11 @@ int main(int argc, char *argv[]) {
   string port = "41100";       // random seed
   bool show_help = false; // show usage?
   bool test_mode = false;
+  bool specific_server = false;
   string server_name = "localhost";
   // Parse the command line options:
   int o;
-  while ((o = getopt(argc, argv, "p:d:ht")) != -1) {
+  while ((o = getopt(argc, argv, "p:d:hts")) != -1) {
     switch (o) {
       case 'h':
       show_help = true;
@@ -319,6 +323,9 @@ int main(int argc, char *argv[]) {
       break;
       case 't':
       test_mode = true;
+      break;
+      case 's':
+      specific_server = true;
       break;
       default:
       show_help = true;
@@ -342,7 +349,7 @@ int main(int argc, char *argv[]) {
     {
       put_or_get = (rand()%100)+1;
       data = command_test(put_or_get);
-      send_message(port, server_name, data);
+      send_message(port, server_name, data, specific_server);
     }
   }
   else              // user mode
@@ -353,7 +360,7 @@ int main(int argc, char *argv[]) {
       {
         break;
       } 
-      send_message(port, server_name, data);
+      send_message(port, server_name, data, specific_server);
     }
 
 
