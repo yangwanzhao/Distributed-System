@@ -1,10 +1,11 @@
 #include <boost/asio.hpp>
+#include <boost/thread.hpp>
 #include <iostream>
 #include <fstream>
-#include <queue>
 #include <string.h>
 #include <chrono>
 #include <thread>
+// #include <mutex>
 #include "hashlist.h"
 
 using namespace boost::asio::ip;
@@ -13,11 +14,17 @@ using namespace std;
 #define BUF_SIZE 4096
 
 pHash_List plist = init_hash_list();
+// mutex mtx;
 // plist = init_hash_list();
+void aaa(){
+
+    cout << "testing" << endl;
+  }
+
 
 class Session : public std::enable_shared_from_this<Session> {
 public:
-  Session(tcp::socket socket) : socket_(std::move(socket)) {}
+  Session(tcp::socket socket) : socket_(std::move(socket)) {cout << "test:  " << socket_.remote_endpoint().address().to_string() << endl;}
 
   void Start() {
     DoRead();
@@ -48,7 +55,6 @@ public:
       });
   }
 
-// function for thread 1 : recieve data from client and add to queue
   void recieve_data(size_t length){
     string command, response, data;
     u32 position;
@@ -66,11 +72,19 @@ public:
       data = data.substr(position+1);
       if (command == "PUT")
       {
+        // boost::thread thrd(insert_node_to_hash, plist, data);
+        // boost::thread thrd(&aaa);
         response = insert_node_to_hash(plist, data);
+        // response = "testing thread";
       }
       else if (command == "GET")
       {
-        response = get_node_to_hash(plist, data);
+        // mtx.lock();
+        // thread thrd(&get_node_to_hash, plist, data);
+        // response = get_node_to_hash(plist, data);
+        // sleep(10);
+        response = "testing thread GET";
+        // mtx.unlock();
       }
       else if (command == "DEL")
       {
