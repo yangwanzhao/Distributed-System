@@ -18,13 +18,13 @@ pHash_List plist = init_hash_list();
 // plist = init_hash_list();
 void aaa(){
 
-    cout << "testing" << endl;
-  }
+  cout << "testing" << endl;
+}
 
 
 class Session : public std::enable_shared_from_this<Session> {
 public:
-  Session(tcp::socket socket) : socket_(std::move(socket)) {cout << "test:  " << socket_.remote_endpoint().address().to_string() << endl;}
+  Session(tcp::socket socket) : socket_(std::move(socket)) {}
 
   void Start() {
     DoRead();
@@ -82,7 +82,7 @@ public:
         // mtx.lock();
         // thread thrd(&get_node_to_hash, plist, data);
         // response = get_node_to_hash(plist, data);
-        // sleep(10);
+        sleep(10);
         response = "testing thread GET";
         // mtx.unlock();
       }
@@ -134,17 +134,22 @@ public:
 
 private:
   void DoAccept() {
-  	// std::cout << "Waiting for a client to connect..." << std::endl;
+  	// Waiting for a client to connect...   pended here
+    cout << '0' << endl;
     acceptor_.async_accept(
-      [this](boost::system::error_code ec, tcp::socket socket) {
-        if (!ec) {
-         cout << "Command from " << socket.remote_endpoint().address().to_string() << endl;
-         std::make_shared<Session>(std::move(socket))->Start();
-
-       }
-       DoAccept();
-     }
-     );
+      [this](boost::system::error_code ec, tcp::socket socket) 
+      {
+          cout << '1' << endl;
+            if (!ec) 
+            {
+             cout << "Command from " << socket.remote_endpoint().address().to_string() << endl;
+             std::make_shared<Session>(std::move(socket))->Start();
+           }
+         cout << "2" << endl;
+         
+        DoAccept(); // run this before the session over
+      }
+      );
   }
 
 private:

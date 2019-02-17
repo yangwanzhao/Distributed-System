@@ -281,8 +281,9 @@ void send_message(string port, string server_name, string data, bool specific_se
 
     auto socket = connect_to_server(server_name, port);
       //Start the 'echo' interaction
+    // while(getline(cin, data)){
     echo_client(socket, data);
-
+  // }
       // clean up when done
     socket.close();
   }catch (std::exception &e){
