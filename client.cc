@@ -294,7 +294,7 @@ void send_message(string port, string server_name, string data, bool specific_se
 
   duration<double> time_span = duration_cast<duration<double>>(endtime - starttime);
   latency = latency + time_span;
-  cout << "Time span: " << time_span.count() << endl;
+  // cout << "Time span: " << time_span.count() << endl;
 }
 
 /** Print some helpful usage information */
@@ -311,7 +311,7 @@ void usage(const char *progname) {
 
 int main(int argc, char *argv[]) {
   // Config vars that we get via getopt
-  string port = "41100";       // random seed
+  string port = "40300";       // random seed
   bool show_help = false; // show usage?
   bool test_mode = false;
   bool specific_server = false;

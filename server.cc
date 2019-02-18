@@ -180,20 +180,27 @@ int main(int argc, char *argv[])
 	using namespace std;
 
 	//Get port as size_t from argv
-	size_t port = 41100;
-	// Parse the command line options:
-	int o;
-	while ((o = getopt(argc, argv, "p:")) != -1) {
-		switch (o) {
-			case 'p':
-			port = atoi(optarg);
-			break;
-			default:
-			break;
+	size_t port = 40300, num_thread = 3;
+
+	ifstream in("DHTConfig");
+	if (in.is_open())
+	{
+		for (string str; getline(in, str) ;)
+		{	
+			if (str.find("PORT")!=str.npos)
+			{
+				port = stoi(str.substr(str.find("=")+1));
+			}
+			if (str.find("THREAD")!=str.npos)
+			{
+				num_thread = stoi(str.substr(str.find("=")+1));
+			}
+			
 		}
+		in.close();
 	}
 
-	AsioThreadPool pool(3);
+	AsioThreadPool pool(num_thread);
 
 	DHTServer server(pool.getIOService(), port);
 
