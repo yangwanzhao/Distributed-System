@@ -1,4 +1,4 @@
-g++ -g server.cc hashlist.cc\
+g++ server.cc hashlist.cc\
 	-std=c++17 \
 	-lboost_system \
 	-lboost_filesystem \
@@ -10,7 +10,7 @@ g++ -g server.cc hashlist.cc\
 	
 
 
-g++ -g client.cc \
+g++ client.cc \
 	-std=c++17 \
 	-lboost_system \
 	-lboost_filesystem \

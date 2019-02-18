@@ -126,10 +126,10 @@ private:
 	std::array<char, 8192> buffer_;
 };
 
-class EchoServer
+class DHTServer
 {
 public:
-	EchoServer(boost::asio::io_service &io_service, unsigned short port)
+	DHTServer(boost::asio::io_service &io_service, unsigned short port)
 	: io_service_(io_service),
 	acceptor_(io_service, tcp::endpoint(tcp::v4(), port))
 	{
@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 
 	AsioThreadPool pool(3);
 
-	EchoServer server(pool.getIOService(), port);
+	DHTServer server(pool.getIOService(), port);
 
 	pool.stop();
 

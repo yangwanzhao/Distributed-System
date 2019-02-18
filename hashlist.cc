@@ -1,17 +1,19 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
 #include <iostream>
 #include <functional>
-#include <regex>
 #include <boost/filesystem.hpp>
 #include <libgen.h>
 #include <unistd.h>
 #include <boost/asio.hpp>
+#include <mutex>
 
 #include "hashlist.h"
 
 using namespace std;
+vector<mutex> mtx(HASH_NUM_MAX);
 
 /*initial a hashlist*/
 pHash_List init_hash_list(void)
@@ -67,29 +69,40 @@ string insert_node_to_hash(pHash_List plist, string data)
   ptail->key   = key;
   ptail->value = value;
   
-  
 
 
-
-  if( NULL == plist->list[id]->next )
+  while(true)
   {
-    plist->list[id]->next = ptail;
-    response = "OK";
-    return response;
-  }
-  pre = plist->list[id]->next;
-  while( pre )
-  {
-    if (pre->key == ptail->key)
+    if (mtx[id].try_lock())
     {
-      response = "ERROR";
-      return response;
+      if( NULL == plist->list[id]->next )
+      {
+        plist->list[id]->next = ptail;
+        response = "OK";
+        mtx[id].unlock();
+        return response;
+      }
+
+      pre = plist->list[id]->next;
+      while( pre )
+      {
+        if (pre->key == ptail->key)
+        {
+          response = "ERROR";
+          mtx[id].unlock();
+          return response;
+        }
+        p = pre;
+        pre = pre->next;   
+      }
+      p->next = ptail;
+      response = "OK";
+
+      mtx[id].unlock();
+      break;
     }
-    p = pre;
-    pre = pre->next;   
+    
   }
-  p->next = ptail;
-  response = "OK";
   return response;
 }
 
@@ -110,38 +123,53 @@ string delete_node_to_hash(pHash_List plist,string data)
   size_t n = h(key);
   id = n % HASH_NUM_MAX;
 
-  psea = plist->list[id]->next; 
-  if( NULL == psea )
+
+  while(true)
   {
-   response = "ERROR";
-   return response;
- } 
- if(key == psea->key )
- {
-   plist->list[id]->next = psea->next; 
-   free(psea);
-   response = "OK";
-   return response;
+    if (mtx[id].try_lock())
+    {
+      psea = plist->list[id]->next; 
+      if( NULL == psea )
+      {
+       response = "ERROR";
+       mtx[id].unlock();
+       return response;
+     } 
+     if( key == psea->key )
+     {
+       plist->list[id]->next = psea->next; 
+       free(psea);
+       response = "OK";
+       mtx[id].unlock();
+       return response;
+     }
+     if( NULL == psea->next )
+     {
+       response = "ERROR";
+       mtx[id].unlock();
+       return response; 
+     } 
+
+     while( key != psea->next->key )
+     {
+       psea = psea->next;
+       if( NULL == psea->next )
+       {
+         response = "ERROR";
+         mtx[id].unlock();
+         return response;
+       }       
+     } 
+     psea->next = psea->next->next;
+     free(psea->next);
+
+     response = "OK";
+
+     mtx[id].unlock();
+     break;
+   }
+
  }
- if( NULL == psea->next )
- {
-   response = "ERROR";
-   return response; 
- } 
-
- while( key != psea->next->key )
- {
-   psea = psea->next;
-   if( NULL == psea->next )
-   {
-     response = "ERROR";
-     return response;
-   }       
- } 
- psea->next = psea->next->next;
- free(psea->next);
-
- response = "OK";
  return response;
 }
 
@@ -162,36 +190,49 @@ string get_node_to_hash(pHash_List plist, string data)
   size_t n = h(key);
   id = n % HASH_NUM_MAX;
 
-  psea = plist->list[id]->next; 
-  if( NULL == psea )
-  {
-    response = "ERROR";
-    return response;
-  }
-  
-  if(key == psea->key )
-  {
-    response = "OK\nRESULT-LEN:" + to_string(psea->len_value) + "\nRESULT:" + psea->value;
-    return response; 
-  } 
-  if( NULL == psea->next )
-  {
-    response = "ERROR";
-    return response;
-  }
 
-  while( key != psea->next->key )
+  while(true)
   {
-    psea = psea->next;
-    if( NULL == psea->next )
+    if (mtx[id].try_lock())
     {
-     response = "ERROR";
-     return response;
-   }   
+      psea = plist->list[id]->next; 
+      if( NULL == psea )
+      {
+        response = "ERROR";
+        mtx[id].unlock();
+        return response;
+      }
+
+      if(key == psea->key )
+      {
+        response = "OK\nRESULT-LEN:" + to_string(psea->len_value) + "\nRESULT:" + psea->value;
+        mtx[id].unlock();
+        return response; 
+      } 
+      if( NULL == psea->next )
+      {
+        response = "ERROR";
+        mtx[id].unlock();
+        return response;
+      }
+
+      while( key != psea->next->key )
+      {
+        psea = psea->next;
+        if( NULL == psea->next )
+        {
+         response = "ERROR";
+         mtx[id].unlock();
+         return response;
+       }   
+     }
+
+     response = "OK\nRESULT-LEN:" + to_string(psea->len_value) + "\nRESULT:" + psea->value;
+     mtx[id].unlock();
+     return response;  
+   }
  }
 
- response = "OK\nRESULT-LEN:" + to_string(psea->len_value) + "\nRESULT:" + psea->value;
- return response;  
 }
 
 // ----------------------- JUST FOR TEST -------------
@@ -234,6 +275,7 @@ void print_hash(pHash_List plist)
 } 
 
 /*free the whole hash table*/
+// never used 
 void free_all_hash(pHash_List plist)
 {
   u32 i;
