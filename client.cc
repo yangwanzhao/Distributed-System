@@ -109,16 +109,16 @@ string random_str(int length){
   int flag;
   for (int i = 0; i < length; i++)
   {
-    flag = rand() % 3;
+    flag = rand() % 2;
     switch (flag)
     {
+      // case 0:
+      // ss << char('A' + rand() % 26);
+      // break;
       case 0:
-      ss << char('A' + rand() % 26);
-      break;
-      case 1:
       ss << char('a' + rand() % 26);
       break;
-      case 2:
+      case 1:
       ss << char('0' + rand() % 10);
       break;
       default:
@@ -131,12 +131,12 @@ string random_str(int length){
   return random_str;
 }
 
-string command_test(int put_or_get){
-  int length_key, length_value;
+string command_test(int put_or_get, int length_key){
+  int length_value;
   string data, key, value;
 
   // srand((unsigned)time(NULL)); 
-  length_key = rand()%5 + 1;
+  // length_key = rand()%5 + 1;
   length_value = rand()%5 + 1;
   
   key = random_str(length_key);
@@ -270,7 +270,7 @@ void send_connect(boost::asio::ip::tcp::socket &socket, string data){
 }
 
 
-void send_message(string port, string server_name, string data, bool specific_server){
+bool send_message(string port, string server_name, string data, bool specific_server){
 
   auto starttime = high_resolution_clock::now();
 
@@ -287,13 +287,19 @@ void send_message(string port, string server_name, string data, bool specific_se
     socket.close();
     
   }catch (std::exception &e){
-    std::cerr << e.what() << std::endl;
+    cout << server_name << " is down" << endl;
+    return false;
+    // std::cerr << e.what() << std::endl;
   }
   
   auto endtime = high_resolution_clock::now();
 
   duration<double> time_span = duration_cast<duration<double>>(endtime - starttime);
-  latency = latency + time_span;
+  if (!specific_server)
+  {
+    latency = latency + time_span;
+  }
+  return true;
   // cout << "Time span: " << time_span.count() << endl;
 }
 
@@ -304,6 +310,8 @@ void usage(const char *progname) {
   cout << "    -p       : Port on which to listen (default 41100)\n";
   cout << "    -h       : print this message\n";
   cout << "    -d       : destination address\n";
+  cout << "    -c       : number of commands\n";
+  cout << "    -l       : length of key\n";
   cout << "    -s       : specify dst addr(works with -d)\n";
   cout << "    -t       : test mode\n";
   
@@ -316,10 +324,10 @@ int main(int argc, char *argv[]) {
   bool test_mode = false;
   bool specific_server = false;
   string server_name = "localhost";
-  int num_command = 10;
+  int num_command = 10, key_len = 3;
   // Parse the command line options:
   int o;
-  while ((o = getopt(argc, argv, "p:d:c:hts")) != -1) {
+  while ((o = getopt(argc, argv, "p:d:c:l:hts")) != -1) {
     switch (o) {
       case 'h':
       show_help = true;
@@ -332,6 +340,9 @@ int main(int argc, char *argv[]) {
       break;
       case 'c':
       num_command = atoi(optarg);
+      break;
+      case 'l':
+      key_len = atoi(optarg);
       break;
       case 't':
       test_mode = true;
@@ -357,14 +368,19 @@ int main(int argc, char *argv[]) {
   if (test_mode)       // test mode
   {  
     srand((unsigned)time(NULL)); 
+    if (!send_message(port, "18.222.251.249", "PING", 1) || !send_message(port, "18.222.141.133", "PING", 1) || !send_message(port, "18.217.26.7", "PING", 1))
+    {
+      return 0;
+    }
+    
     for (int i = 0; i < num_command; ++i)
     {
       put_or_get = (rand()%100)+1;
-      data = command_test(put_or_get);
+      data = command_test(put_or_get, key_len);
       send_message(port, server_name, data, specific_server);
     }
     // send_message(port, server_name, "SHOW\n", specific_server);
-
+    cout << "Total Time: " << latency.count() << endl;
   }
   else              // user mode
   {  
@@ -380,7 +396,6 @@ int main(int argc, char *argv[]) {
 
   }
 
-  cout << "Total Time: " << latency.count() << endl;
   return 0;
 
 

@@ -1,7 +1,7 @@
 #ifndef _H_HASHLIST_
 #define _H_HASHLIST_
  
-#define HASH_NUM_MAX 65536
+#define HASH_NUM_MAX 49999
  
 #define u32 unsigned int
  
