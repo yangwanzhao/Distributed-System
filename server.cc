@@ -11,6 +11,7 @@ using namespace std;
 
 //server run hashtable; thread work on this hashtable
 pHash_List plist = init_hash_list();  
+int get_succ=0, get_fail=0, put_succ=0, put_fail=0;
 
 class TCPConnection : public std::enable_shared_from_this<TCPConnection> 
 {
@@ -64,9 +65,9 @@ private:
 	}
 
 	size_t handle_data(size_t length){
-		std::string command, response, data;
+		string command, response, data;
 		u32 position;
-		std::stringstream stream;
+		stringstream stream;
 		for (int i = 0; i < length; ++i)
 		{
 			stream << buffer_[i];
@@ -82,12 +83,28 @@ private:
 			{
 
 				response = insert_node_to_hash(plist, data);
+				if (response == "OK")
+				{
+					put_succ++;
+				}
+				else if (response == "ERROR")
+				{
+					put_fail++;
+				}
 
 			}
 			else if (command == "GET")
 			{
 				// sleep(10);
 				response = get_node_to_hash(plist, data);
+				if (response == "ERROR")
+				{
+					get_fail++;
+				}
+				else
+				{
+					get_succ++;
+				}
 			}
 			else if (command == "DEL")
 			{
@@ -116,6 +133,9 @@ private:
 			buffer_[i] = data[i];
 		}
 		length = data.length();
+
+
+		cout << "PUT_SUCC = " << put_succ << "\tPUT_FAIL = " << put_fail << "\tGET_SUCC = " << get_succ << "\tGET_FAIL = " << get_fail << endl;
 
 		return length;
 	}

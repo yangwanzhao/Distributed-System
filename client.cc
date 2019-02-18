@@ -6,8 +6,13 @@
 #include <time.h>
 
 using namespace std;
+using std::chrono::duration;
+using std::chrono::duration_cast;
+using std::chrono::high_resolution_clock;
 
 #define BUF_SIZE 8192
+
+duration<double> latency;
 
 /**
  * Connect to a server so that we can have bidirectional communication on the 
@@ -141,10 +146,12 @@ string command_test(int put_or_get){
   if (put_or_get <= 40)
   { //put
     data = "PUT\n" + to_string(length_key) + "\n" + key + "\n" + to_string(length_value) + "\n" + value;
+    cout << "PUT: ";
   }
   else
   { //get
     data = "GET\n" + to_string(length_key) + "\n" + key;
+    cout << "GET: ";
   }
 
   return data;
@@ -218,7 +225,7 @@ void send_connect(boost::asio::ip::tcp::socket &socket, string data){
   write(socket, buffer(data), ignored_error);
   xmitBytes += data.length();
 
-  cout << "Server:" << endl;
+  // cout << "Server:" << endl;
   str_buf = "";
   while (true)
   {
@@ -264,12 +271,15 @@ void send_connect(boost::asio::ip::tcp::socket &socket, string data){
 
 
 void send_message(string port, string server_name, string data, bool specific_server){
+
+  auto starttime = high_resolution_clock::now();
+
   if (!specific_server)
   {
     server_name = pickServer(data);
   }
 
-  cout << "send to " << server_name << endl;
+  // cout << "send to " << server_name << endl;
   try{
       // Set up the client socket
     auto socket = connect_to_server(server_name, port);
@@ -279,6 +289,12 @@ void send_message(string port, string server_name, string data, bool specific_se
   }catch (std::exception &e){
     std::cerr << e.what() << std::endl;
   }
+  
+  auto endtime = high_resolution_clock::now();
+
+  duration<double> time_span = duration_cast<duration<double>>(endtime - starttime);
+  latency = latency + time_span;
+  cout << "Time span: " << time_span.count() << endl;
 }
 
 /** Print some helpful usage information */
@@ -347,7 +363,7 @@ int main(int argc, char *argv[]) {
       data = command_test(put_or_get);
       send_message(port, server_name, data, specific_server);
     }
-    send_message(port, server_name, "SHOW\n", specific_server);
+    // send_message(port, server_name, "SHOW\n", specific_server);
 
   }
   else              // user mode
@@ -363,6 +379,8 @@ int main(int argc, char *argv[]) {
 
 
   }
+
+  cout << "Total Time: " << latency.count() << endl;
   return 0;
 
 
