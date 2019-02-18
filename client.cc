@@ -300,9 +300,10 @@ int main(int argc, char *argv[]) {
   bool test_mode = false;
   bool specific_server = false;
   string server_name = "localhost";
+  int num_command = 10;
   // Parse the command line options:
   int o;
-  while ((o = getopt(argc, argv, "p:d:hts")) != -1) {
+  while ((o = getopt(argc, argv, "p:d:c:hts")) != -1) {
     switch (o) {
       case 'h':
       show_help = true;
@@ -312,6 +313,9 @@ int main(int argc, char *argv[]) {
       break;
       case 'd':
       server_name = string(optarg);
+      break;
+      case 'c':
+      num_command = atoi(optarg);
       break;
       case 't':
       test_mode = true;
@@ -337,12 +341,14 @@ int main(int argc, char *argv[]) {
   if (test_mode)       // test mode
   {  
     srand((unsigned)time(NULL)); 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < num_command; ++i)
     {
       put_or_get = (rand()%100)+1;
       data = command_test(put_or_get);
       send_message(port, server_name, data, specific_server);
     }
+    send_message(port, server_name, "SHOW\n", specific_server);
+
   }
   else              // user mode
   {  

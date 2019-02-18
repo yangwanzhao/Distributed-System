@@ -37,7 +37,6 @@ string insert_node_to_hash(pHash_List plist, string data)
   Node *ptail,*pre,*p;
   u32 id, position, len_key, len_value;
   string key, value, response;
-
   // (u32) len_key
   position = data.find("\n");
   len_key = stoi(data.substr(0, position));
@@ -47,6 +46,7 @@ string insert_node_to_hash(pHash_List plist, string data)
   key = data.substr(0, position);
   data = data.substr(position+1);
   // (u32) len_value
+
   position = data.find("\n");
   len_value = stoi(data.substr(0, position));
   // (string) value 
@@ -56,13 +56,20 @@ string insert_node_to_hash(pHash_List plist, string data)
   size_t n = h(key);
   id = n % HASH_NUM_MAX;
 
-  ptail = (Node *)malloc(sizeof(Node));
+  // cout << "#####test2: " << len_key << " " << key << " " << len_value << " " << value << " " << id << endl;
+
+  // ptail = (Node *)malloc(sizeof(Node));
+  ptail = new Node;
   ptail->next = NULL;
-  ptail->value = value;
   ptail->id   = id;
-  ptail->key   = key;
   ptail->len_key = len_key;
   ptail->len_value = len_value;
+  ptail->key   = key;
+  ptail->value = value;
+  
+  
+
+
 
   if( NULL == plist->list[id]->next )
   {

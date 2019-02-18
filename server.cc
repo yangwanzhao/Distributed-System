@@ -82,10 +82,11 @@ private:
 			{
 
 				response = insert_node_to_hash(plist, data);
+
 			}
 			else if (command == "GET")
 			{
-				sleep(10);
+				// sleep(10);
 				response = get_node_to_hash(plist, data);
 			}
 			else if (command == "DEL")
@@ -109,6 +110,7 @@ private:
 			data = response;  
 		}
 		data = std::to_string(data.length()) + "\n" + data;
+
 		for (int i = 0; i < data.length(); ++i)
 		{
 			buffer_[i] = data[i];
@@ -171,7 +173,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	AsioThreadPool pool(4);
+	AsioThreadPool pool(3);
 
 	EchoServer server(pool.getIOService(), port);
 
