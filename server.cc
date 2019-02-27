@@ -83,7 +83,7 @@ private:
 			{
 
 				response = insert_node_to_hash(plist, data);
-				cout << response << endl;
+				// cout << response << endl;
 				if (response == "OK")
 				{
 					put_succ++;
@@ -136,7 +136,7 @@ private:
 		length = data.length();
 
 
-		// cout << "PUT_SUCC = " << put_succ << "\tPUT_FAIL = " << put_fail << "\tGET_SUCC = " << get_succ << "\tGET_FAIL = " << get_fail << endl;
+		cout << "PUT_SUCC = " << put_succ << "\tPUT_FAIL = " << put_fail << "\tGET_SUCC = " << get_succ << "\tGET_FAIL = " << get_fail << endl;
 
 		return length;
 	}

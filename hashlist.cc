@@ -88,7 +88,7 @@ string insert_node_to_hash(pHash_List plist, string data)
       {
         if (pre->key == ptail->key)
         {
-          cout << pre->key << " and "<< ptail->key << endl;
+          // cout << pre->key << " and "<< ptail->key << endl;
           response = "ERROR";
           mtx[id].unlock();
           return response;
