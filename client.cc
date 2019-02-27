@@ -146,7 +146,7 @@ string command_test(int put_or_get, int length_key){
   if (put_or_get <= 40)
   { //put
     data = "PUT\n" + to_string(length_key) + "\n" + key + "\n" + to_string(length_value) + "\n" + value;
-    cout << "PUT: ";
+    cout << "PUT  " << key << ": ";
   }
   else
   { //get
