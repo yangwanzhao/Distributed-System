@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <boost/asio.hpp>
 #include <time.h>
+#include <vector>
 
 using namespace std;
 using std::chrono::duration;
@@ -13,6 +14,7 @@ using std::chrono::high_resolution_clock;
 #define BUF_SIZE 8192
 
 duration<double> latency;
+vector<string> server_list = {"18.222.251.249", "18.222.141.133", "18.217.26.7"};
 
 /**
  * Connect to a server so that we can have bidirectional communication on the 
@@ -21,6 +23,17 @@ duration<double> latency;
  * @param hostname The name of the server (ip or DNS) to connect to 
  * @param port the server's port that we should use
  */
+
+// class AWSConnection : public std::enable_shared_from_this<AWSConnection> 
+// {
+
+
+// private: 
+//   boost::asio::io_service &io_service_;
+// }
+
+
+
 
 boost::asio::ip::tcp::socket connect_to_server(std::string hostname,
  std::string port) {
@@ -185,20 +198,9 @@ string pickServer(string data){
   // hash(key)
   hash<string> h;
   size_t n = h(key);
-  id_server = (n % num_server)+1;
-  if (id_server == 1)
-  {
-    return "18.222.251.249";
-  }
-  else if (id_server == 2)
-  {
-    return "18.222.141.133";
-  }
-  else if (id_server == 3)
-  {
-    return "18.217.26.7";
-  }
-  return NULL;
+  id_server = (n % num_server);
+ 
+  return server_list[id_server];
 }
 
 
@@ -368,7 +370,7 @@ int main(int argc, char *argv[]) {
   if (test_mode)       // test mode
   {  
     srand((unsigned)time(NULL)); 
-    if (!send_message(port, "18.222.251.249", "PING", 1) || !send_message(port, "18.222.141.133", "PING", 1) || !send_message(port, "18.217.26.7", "PING", 1))
+    if (!send_message(port, server_list[0], "PING", 1) || !send_message(port, server_list[1], "PING", 1) || !send_message(port, server_list[2], "PING", 1))
     {
       return 0;
     }
