@@ -37,40 +37,24 @@ pHash_List init_hash_list(void)
 string insert_node_to_hash(pHash_List plist, string data)
 {
   Node *ptail,*pre,*p;
-  u32 id, position, len_key, len_value;
+  u32 id, position;
   string key, value, response;
   // (u32) len_key
   position = data.find("\n");
-  len_key = stoi(data.substr(0, position));
-  data = data.substr(position+1);
-  // (string) key
-  position = data.find("\n");
   key = data.substr(0, position);
-  data = data.substr(position+1);
-  // (u32) len_value
-
-  position = data.find("\n");
-  len_value = stoi(data.substr(0, position));
-  // (string) value 
   value = data.substr(position+1);
 
   std::hash<std::string> h;
   size_t n = h(key);
   id = n % HASH_NUM_MAX;
 
-  // cout << "#####test2: " << len_key << " " << key << " " << len_value << " " << value << " " << id << endl;
-
   // ptail = (Node *)malloc(sizeof(Node));
   ptail = new Node;
   ptail->next = NULL;
   ptail->id   = id;
-  ptail->len_key = len_key;
-  ptail->len_value = len_value;
   ptail->key   = key;
   ptail->value = value;
   
-
-
   while(true)
   {
     if (mtx[id].try_lock())
@@ -111,14 +95,10 @@ string insert_node_to_hash(pHash_List plist, string data)
 string delete_node_to_hash(pHash_List plist,string data)
 {
   Node *psea;
-  u32 id, position, len_key;
+  u32 id;
   string key, response;
 
-  // (u32) len_key
-  position = data.find("\n");
-  len_key = stoi(data.substr(0, position));
-  // (string) key
-  key = data.substr(position+1);
+  key = data;
   
   std::hash<std::string> h;
   size_t n = h(key);
@@ -178,14 +158,10 @@ string delete_node_to_hash(pHash_List plist,string data)
 string get_node_to_hash(pHash_List plist, string data)
 {
   Node *psea;
-  u32 id, position, len_key;
+  u32 id, position;
   string key, response;
 
-  // (u32) len_key
-  position = data.find("\n");
-  len_key = stoi(data.substr(0, position));
-  // (string) key
-  key = data.substr(position+1);
+  key = data;
 
   std::hash<std::string> h;
   size_t n = h(key);
@@ -206,7 +182,7 @@ string get_node_to_hash(pHash_List plist, string data)
 
       if(key == psea->key )
       {
-        response = "OK\nRESULT-LEN:" + to_string(psea->len_value) + "\nRESULT:" + psea->value;
+        response = "OK\nRESULT:" + psea->value;
         mtx[id].unlock();
         return response; 
       } 
@@ -228,7 +204,7 @@ string get_node_to_hash(pHash_List plist, string data)
        }   
      }
 
-     response = "OK\nRESULT-LEN:" + to_string(psea->len_value) + "\nRESULT:" + psea->value;
+     response = "OK\nRESULT:" + psea->value;
      mtx[id].unlock();
      return response;  
    }
@@ -240,15 +216,15 @@ string get_node_to_hash(pHash_List plist, string data)
 void init_hash(pHash_List plist)
 {
   string data;
-  data = "3\nwww\n2\nqq";
+  data = "www\nqq";
   insert_node_to_hash(plist, data);
-  data = "4\nwaaa\n5\nqaaaq";
+  data = "waaa\nqaaaq";
   insert_node_to_hash(plist, data);
-  data = "5\nqavqw\n7\nqasdfsq";
+  data = "qavqw\nqasdfsq";
   insert_node_to_hash(plist, data);
-  data = "4\nqaqw\n2\nqa";
+  data = "qaqw\nqa";
   insert_node_to_hash(plist, data);
-  data = "6\nqaa2qw\n4\nq22a";
+  data = "qaa2qw\nq22a";
   insert_node_to_hash(plist, data);
 }
 // ----------------------- JUST FOR TEST -------------
@@ -268,7 +244,7 @@ void print_hash(pHash_List plist)
 
     while( NULL != p )
     {
-      cout << "id=" << p->id << " len_key=" << p->len_key << " key=" << p->key << " len_value=" << p->len_value << " value=" << p->value << endl;
+      cout << "id=" << p->id << "  key=" << p->key << "  value=" << p->value << endl;
       p = p->next;
     }        
   }

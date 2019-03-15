@@ -7,303 +7,253 @@
 #include <vector>
 
 using namespace std;
+using namespace boost::asio;
 using std::chrono::duration;
 using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
 
+
 #define BUF_SIZE 8192
 
 duration<double> latency;
-vector<string> server_list = {"18.222.251.249", "18.222.141.133", "18.217.26.7"};
+vector<string> server_list = {"localhost", "18.222.251.249", "18.222.141.133", "18.217.26.7"};
+// vector<ip::tcp::socket> socket_;
 
-/**
- * Connect to a server so that we can have bidirectional communication on the 
- * socket (represented by a file descriptor) that this function returns
- *
- * @param hostname The name of the server (ip or DNS) to connect to 
- * @param port the server's port that we should use
- */
+class DHTClient //: public std::enable_shared_from_this<DHTClient> 
+{
+public:
+  // DHTClient():socket_(create_socket("localhost", "40300")){socket_.close();}
+  DHTClient(string port, string server):port_(port),server_(server),socket_(create_socket(server, port)){}
 
-// class AWSConnection : public std::enable_shared_from_this<AWSConnection> 
-// {
+  boost::asio::ip::tcp::socket create_socket(std::string hostname, std::string port) {
+    using namespace boost::asio;
 
+    io_service io_service;
+    ip::tcp::resolver resolver(io_service);
+    ip::tcp::resolver::query query(hostname, port);
+    ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+    ip::tcp::socket socket(io_service);
+    try{
+      connect(socket, endpoint_iterator);
+    }catch (std::exception &e){
+      // std::cerr << e.what() << std::endl;
+      cout << hostname << " is offline" << endl;
+      exit(1);
+    }
+    return socket;
+  }
 
-// private: 
-//   boost::asio::io_service &io_service_;
-// }
+  void write_read_buffer(boost::asio::ip::tcp::socket &socket, string data){
+    using namespace std;
+    using namespace boost::asio;
 
+    // track connection duration, bytes transmitted
+    size_t xmitBytes = 0;
+    struct timeval start_time, end_time;
+    gettimeofday(&start_time, nullptr);
 
+    //ready to recieve data from server
+    size_t recd = 0, position;
+    unsigned char buf[BUF_SIZE];
+    // vector<unsigned char> buf;
+    size_t len;
+    stringstream stream;
+    string str_buf;
+    boost::system::error_code ignored_error;
+    write(socket, buffer(data), ignored_error);
+    xmitBytes += data.length();
 
+    str_buf = "";
+    while (true)
+    {
+      len = socket.read_some(boost::asio::buffer(buf), ignored_error);
 
-boost::asio::ip::tcp::socket connect_to_server(std::string hostname,
- std::string port) {
-  using namespace boost::asio;
-  io_service io_service;
-  ip::tcp::resolver resolver(io_service);
-  ip::tcp::resolver::query query(hostname, port);
-  ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
-  ip::tcp::socket socket(io_service);
-  connect(socket, endpoint_iterator);
-  return socket;
-}
+      for (int i = 0; i < len; ++i)
+      {
+        stream << buf[i];
+      }
 
+      str_buf = stream.str();
+      position = str_buf.find("\n");
+      if ( position < str_buf.length() )
+      {
+        recd = stoi(str_buf.substr(0, position));
+        break;
+      }
+    }
 
-string command(){
-  string data, key, value, str_length_key, str_length_value;
-  int length_key,length_value;
-  cout<<"Client: ";
-  getline(cin, data);
-  if (cin.eof()){
-    return "EXIT";
-  } 
+    stream.str("");
+
+    while(str_buf.length()<recd+1+to_string(recd).length())
+    {
+      len = socket.read_some(boost::asio::buffer(buf), ignored_error);
+      for (int i = 0; i < len; ++i)
+      {
+        stream << buf[i];
+      }
+      str_buf = str_buf + stream.str();
+      stream.str("");
+    }
+
+    position = str_buf.find("\n");
+    str_buf = str_buf.substr(position+1);
+
+    cout << str_buf << endl;
+    gettimeofday(&end_time, nullptr);
+    // cout << endl
+    // << "Transmitted " << xmitBytes << " bytes in "
+    // << (end_time.tv_sec - start_time.tv_sec) << " seconds" << endl;
+  }
+
+  bool send_message(string data){
+    auto starttime = high_resolution_clock::now();
+
+    try{
+      // auto socket = create_socket(server_name, port);
+      write_read_buffer(socket_, data);
+    }catch (std::exception &e){
+      std::cerr << e.what() << std::endl;
+      return false;
+    }
+
+    auto endtime = high_resolution_clock::now();
+
+    duration<double> time_span = duration_cast<duration<double>>(endtime - starttime);
+    // if (!bool_specific_server)
+    // {
+    //   latency = latency + time_span;
+    // }
+    return true;
+    // cout << "Time span: " << time_span.count() << endl;
+  }
+
+  void close_socket(){
+    socket_.close();
+  }
+
+private: 
+  ip::tcp::socket socket_;
+  string port_;
+  string server_;
+};
+
+class dataGenerator
+{
+public:
+  dataGenerator():key_(""),num_server_(3){}
+
+  string command_test(){
+    string data, key, value;
+    cout<<"Client: ";
+    getline(cin, data);
+    if (cin.eof()){
+      return "EXIT";
+    } 
 
     // ******* PUT *******
-  if (data == "PUT")
-  {
-
-    cout << "KEY:";
-    getline(cin, key);
-
-    cout << "VAL:";
-    getline(cin, value);
-
-    str_length_key = to_string(key.length());
-    str_length_value = to_string(value.length());
-      // protocol
-      // PUT\nlength_key\nkey\nlength_value\nvalue
-    data = "PUT\n" + str_length_key + "\n" + key + "\n" + str_length_value + "\n" + value;
-  }
-
+    if (data == "PUT")
+    {
+      cout << "KEY:";
+      getline(cin, key);
+      cout << "VAL:";
+      getline(cin, value);
+      // PUT\nkey\nvalue
+      data = "PUT\n" + key + "\n" + value;
+    }
     // ******* GET *******
-  else if (data == "GET")
-  {
-
-    cout << "KEY:";
-    getline(cin, key);
-
-    str_length_key = to_string(key.length());
-      // protocol
+    else if (data == "GET")
+    {
+      cout << "KEY:";
+      getline(cin, key);
       // GET\nlength_key\nkey
-    data = "GET\n" + str_length_key + "\n" + key;
-  }
-
+      data = "GET\n" + key;
+    }
     // ******* DEL *******
-  else if (data == "DEL")
-  {
-
-    cout << "KEY:";
-    getline(cin, key);
-
-    str_length_key = to_string(key.length());
-      // protocol
+    else if (data == "DEL")
+    {
+      cout << "KEY:";
+      getline(cin, key);
       // DEL\nlength_key\nkey
-    data = "DEL\n" + str_length_key + "\n" + key;
-  }
-
+      data = "DEL\n" + key;
+    }
     // ----------------------- JUST FOR TEST --------------
     // ******* SHOW *******
-  else if (data == "SHOW")
-  {
-    data = "SHOW\n";
-  }
-    // ******* INIT *******
-  else if (data == "INIT")
-  {
-    data = "INIT\n";
-  }
-    // ----------------------- JUST FOR TEST -------------
-
-  return data;
-}
-
-string random_str(int length){
-  stringstream ss;
-  string random_str;
-  int flag;
-  for (int i = 0; i < length; i++)
-  {
-    flag = rand() % 2;
-    switch (flag)
+    else if (data == "SHOW")
     {
+      data = "SHOW\n";
+    }
+    // ******* INIT *******
+    else if (data == "INIT")
+    {
+      data = "INIT\n";
+    }
+    // ----------------------- JUST FOR TEST -------------
+    return data;
+  }
+
+  string command(int put_or_get, int length_key){
+    int length_value;
+    string data, key, value;
+    length_value = rand()%5 + 1;
+
+    key = random_str(length_key);
+    value = random_str(length_value);
+    key_ = key;
+
+    if (put_or_get <= 40)
+    { //put
+      data = "PUT\n" + key + "\n" + value;
+      cout << "PUT  " << key << ": ";
+    }
+    else
+    { //get
+      data = "GET\n" + key;
+      cout << "GET: ";
+    }
+    return data;
+  }
+
+  string random_str(int length){
+    stringstream ss;
+    string random_str;
+    int flag;
+    for (int i = 0; i < length; i++)
+    {
+      flag = rand() % 2;
+      switch (flag)
+      {
       // case 0:
       // ss << char('A' + rand() % 26);
       // break;
-      case 0:
-      ss << char('a' + rand() % 26);
-      break;
-      case 1:
-      ss << char('0' + rand() % 10);
-      break;
-      default:
-      ss << 'x';
-      break;
-    }
-  }
-
-  ss >> random_str;
-  return random_str;
-}
-
-string command_test(int put_or_get, int length_key){
-  int length_value;
-  string data, key, value;
-
-  // srand((unsigned)time(NULL)); 
-  // length_key = rand()%5 + 1;
-  length_value = rand()%5 + 1;
-  
-  key = random_str(length_key);
-  value = random_str(length_value);
-
-
-  if (put_or_get <= 40)
-  { //put
-    data = "PUT\n" + to_string(length_key) + "\n" + key + "\n" + to_string(length_value) + "\n" + value;
-    cout << "PUT  " << key << ": ";
-  }
-  else
-  { //get
-    data = "GET\n" + to_string(length_key) + "\n" + key;
-    cout << "GET: ";
-  }
-
-  return data;
-}
-
-string pickServer(string data){
-  int position, len_key, num_server, id_server;
-  string key, command;
-
-  num_server = 3;
-
-  position = data.find("\n");
-  if (position <= data.length()){
-    command = data.substr(0, position);
-    data = data.substr(position+1);
-    if (command == "PUT" || command == "GET" || command == "DEL"){
-      position = data.find("\n");
-      len_key = stoi(data.substr(0, position));
-      data = data.substr(position+1);
-      position = data.find("\n");
-      key = data.substr(0, position);
-    }
-  }
-
-  if (key == "")
-  {
-    return "localhost";
-  }
-
-
-  // hash(key)
-  hash<string> h;
-  size_t n = h(key);
-  id_server = (n % num_server);
- 
-  return server_list[id_server];
-}
-
-
-void send_connect(boost::asio::ip::tcp::socket &socket, string data){
-  using namespace std;
-  using namespace boost::asio;
-
-  // track connection duration, bytes transmitted
-  size_t xmitBytes = 0;
-  struct timeval start_time, end_time;
-  gettimeofday(&start_time, nullptr);
-
-    // Get the data from stdin, This assumes that we haven't redirected stdin
-    // to a socket
-
-    //ready to recieve data from server
-  size_t recd = 0, position;
-  unsigned char buf[BUF_SIZE];
-    // vector<unsigned char> buf;
-  size_t len;
-  stringstream stream;
-  string str_buf;
-  boost::system::error_code ignored_error;
-  write(socket, buffer(data), ignored_error);
-  xmitBytes += data.length();
-
-  // cout << "Server:" << endl;
-  str_buf = "";
-  while (true)
-  {
-    len = socket.read_some(boost::asio::buffer(buf), ignored_error);
-
-    for (int i = 0; i < len; ++i)
-    {
-      stream << buf[i];
+        case 0:
+        ss << char('a' + rand() % 26);
+        break;
+        case 1:
+        ss << char('0' + rand() % 10);
+        break;
+        default:
+        ss << 'x';
+        break;
+      }
     }
 
-    str_buf = stream.str();
-    position = str_buf.find("\n");
-    if ( position < str_buf.length() )
-    {
-      recd = stoi(str_buf.substr(0, position));
-      break;
-    }
+    ss >> random_str;
+    return random_str;
   }
 
-  stream.str("");
+  int pickServer(){
+    int id_server;
+    hash<string> h;
 
-  while(str_buf.length()<recd+1+to_string(recd).length())
-  {
-    len = socket.read_some(boost::asio::buffer(buf), ignored_error);
-    for (int i = 0; i < len; ++i)
-    {
-      stream << buf[i];
-    }
-    str_buf = str_buf + stream.str();
-    stream.str("");
+    size_t n = h(key_);
+    id_server = (n % num_server_) + 1;
+    return id_server;
   }
 
-  position = str_buf.find("\n");
-  str_buf = str_buf.substr(position+1);
-
-  cout << str_buf << endl;
-  gettimeofday(&end_time, nullptr);
-  // cout << endl
-  // << "Transmitted " << xmitBytes << " bytes in "
-  // << (end_time.tv_sec - start_time.tv_sec) << " seconds" << endl;
-
-}
-
-
-bool send_message(string port, string server_name, string data, bool specific_server){
-
-  auto starttime = high_resolution_clock::now();
-
-  if (!specific_server)
-  {
-    server_name = pickServer(data);
-  }
-
-  // cout << "send to " << server_name << endl;
-  try{
-      // Set up the client socket
-    auto socket = connect_to_server(server_name, port);
-    send_connect(socket, data);
-    socket.close();
-    
-  }catch (std::exception &e){
-    cout << server_name << " is down" << endl;
-    return false;
-    // std::cerr << e.what() << std::endl;
-  }
-  
-  auto endtime = high_resolution_clock::now();
-
-  duration<double> time_span = duration_cast<duration<double>>(endtime - starttime);
-  if (!specific_server)
-  {
-    latency = latency + time_span;
-  }
-  return true;
-  // cout << "Time span: " << time_span.count() << endl;
-}
+private:
+  string key_;
+  int num_server_;
+};
 
 /** Print some helpful usage information */
 void usage(const char *progname) {
@@ -311,21 +261,20 @@ void usage(const char *progname) {
   cout << "  Usage: " << progname << " [options]\n";
   cout << "    -p       : Port on which to listen (default 41100)\n";
   cout << "    -h       : print this message\n";
-  cout << "    -d       : destination address\n";
+  //cout << "    -d       : destination address\n";
   cout << "    -c       : number of commands\n";
   cout << "    -l       : length of key\n";
-  cout << "    -s       : specify dst addr(works with -d)\n";
+  //cout << "    -s       : specify dst addr(works with -d)\n";
   cout << "    -t       : test mode\n";
   
 }
 
 int main(int argc, char *argv[]) {
-  // Config vars that we get via getopt
-  string port = "40300";       // random seed
-  bool show_help = false; // show usage?
+  string port = "40300", data;
+  bool show_help = false; 
   bool test_mode = false;
-  bool specific_server = false;
-  string server_name = "localhost";
+  // bool bool_specific_server = false;
+  //string server_name = "localhost";
   int num_command = 10, key_len = 3;
   // Parse the command line options:
   int o;
@@ -337,9 +286,9 @@ int main(int argc, char *argv[]) {
       case 'p':
       port = string(optarg);
       break;
-      case 'd':
-      server_name = string(optarg);
-      break;
+      // case 'd':
+      // server_name = string(optarg);
+      // break;
       case 'c':
       num_command = atoi(optarg);
       break;
@@ -349,9 +298,9 @@ int main(int argc, char *argv[]) {
       case 't':
       test_mode = true;
       break;
-      case 's':
-      specific_server = true;
-      break;
+      // case 's':
+      // bool_specific_server = true;
+      // break;
       default:
       show_help = true;
       break;
@@ -364,38 +313,48 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
 
-  string data;
-  int put_or_get;
-
-  if (test_mode)       // test mode
+  dataGenerator dataGen;
+  /**********************************************/
+  /* test mode: only communicate with localhost */
+  /**********************************************/
+  if (test_mode)      
   {  
-    srand((unsigned)time(NULL)); 
-    if (!send_message(port, server_list[0], "PING", 1) || !send_message(port, server_list[1], "PING", 1) || !send_message(port, server_list[2], "PING", 1))
-    {
-      return 0;
-    }
+    DHTClient clientTest(port, server_list[0]);
     
-    for (int i = 0; i < num_command; ++i)
-    {
-      put_or_get = (rand()%100)+1;
-      data = command_test(put_or_get, key_len);
-      send_message(port, server_name, data, specific_server);
-    }
-    // send_message(port, server_name, "SHOW\n", specific_server);
-    cout << "Total Time: " << latency.count() << endl;
-  }
-  else              // user mode
-  {  
     while(true){
-      data = command(); 
+      data = dataGen.command_test(); 
       if (data == "EXIT")
       {
         break;
       } 
-      send_message(port, server_name, data, specific_server);
+      clientTest.send_message(data);
     }
+    clientTest.close_socket();
+  }
+  /**********************************************/
+  /********** communicate with the DHT **********/
+  /**********************************************/
+  else      
+  {  
+    int put_or_get, serverID;
 
+    vector<DHTClient> clientNode;
+    for (int i = 1; i < server_list.size(); ++i)
+    {
+      clientNode.push_back(DHTClient(port, server_list[i]));
+    }
+    
+    srand((unsigned)time(NULL)); 
+    
+    for (int i = 0; i < num_command; ++i)
+    {
+      put_or_get = (rand()%100)+1;
+      data = dataGen.command(put_or_get, key_len);
+      serverID = dataGen.pickServer();
 
+      clientNode[serverID].send_message(data);
+    }
+    // cout << "Total Time: " << latency.count() << endl;
   }
 
   return 0;

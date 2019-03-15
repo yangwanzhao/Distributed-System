@@ -11,7 +11,7 @@
 typedef struct _Node
 {
 	std::string key;
-    u32 id,len_key,len_value;
+    u32 id;
     std::string value;
     struct _Node *next;        
 }Node,*pNode;
