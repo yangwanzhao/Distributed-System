@@ -5,15 +5,14 @@
 #include <boost/asio.hpp>
 #include <time.h>
 #include <vector>
+#define NUM_SERVER 3
+#define BUF_SIZE 8192
 
 using namespace std;
 using namespace boost::asio;
 using std::chrono::duration;
 using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
-
-
-#define BUF_SIZE 8192
 
 duration<double> latency;
 vector<string> server_list = {"localhost", "3.16.111.154", "18.191.138.29", "18.225.10.237"};
@@ -140,7 +139,7 @@ private:
 class dataGenerator
 {
 public:
-  dataGenerator():key_(""),num_server_(3){}
+  dataGenerator():key_(""),num_server_(NUM_SERVER){}
 
   string command_test(){
     string data, key, value;
@@ -351,8 +350,13 @@ int main(int argc, char *argv[]) {
       put_or_get = (rand()%100)+1;
       data = dataGen.command(put_or_get, key_len);
       serverID = dataGen.pickServer();
-
+      cout << "serverID: " << serverID << endl;
       clientNode[serverID].send_message(data);
+    }
+
+    for (int i = 0; i < server_list.size()-1; ++i)
+    {
+      clientNode[i].close_socket();
     }
     // cout << "Total Time: " << latency.count() << endl;
   }
