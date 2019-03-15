@@ -16,7 +16,7 @@ using std::chrono::high_resolution_clock;
 #define BUF_SIZE 8192
 
 duration<double> latency;
-vector<string> server_list = {"localhost", "18.222.251.249", "18.222.141.133", "18.217.26.7"};
+vector<string> server_list = {"localhost", "3.16.111.154", "18.191.138.29", "18.225.10.237"};
 // vector<ip::tcp::socket> socket_;
 
 class DHTClient //: public std::enable_shared_from_this<DHTClient> 
