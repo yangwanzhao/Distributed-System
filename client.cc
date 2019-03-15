@@ -245,7 +245,7 @@ public:
     hash<string> h;
 
     size_t n = h(key_);
-    id_server = (n % num_server_) + 1;
+    id_server = n % num_server_;
     return id_server;
   }
 
