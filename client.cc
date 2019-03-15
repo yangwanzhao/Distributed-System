@@ -1,11 +1,12 @@
 #include <iostream>
+#include <fstream>
 #include <libgen.h>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp>
 #include <unistd.h>
 #include <boost/asio.hpp>
 #include <time.h>
 #include <vector>
-#define NUM_SERVER 3
 #define BUF_SIZE 8192
 
 using namespace std;
@@ -15,10 +16,8 @@ using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
 
 duration<double> latency;
-vector<string> server_list = {"localhost", "3.16.111.154", "18.191.138.29", "18.225.10.237"};
-// vector<ip::tcp::socket> socket_;
 
-class DHTClient //: public std::enable_shared_from_this<DHTClient> 
+class DHTClient 
 {
 public:
   // DHTClient():socket_(create_socket("localhost", "40300")){socket_.close();}
@@ -139,7 +138,7 @@ private:
 class dataGenerator
 {
 public:
-  dataGenerator():key_(""),num_server_(NUM_SERVER){}
+  dataGenerator(int num_server):key_(""),num_server_(num_server){}
 
   string command_test(){
     string data, key, value;
@@ -207,7 +206,7 @@ public:
     else
     { //get
       data = "GET\n" + key;
-      cout << "GET: ";
+      cout << "GET  " << key << ": ";
     }
     return data;
   }
@@ -275,6 +274,7 @@ int main(int argc, char *argv[]) {
   // bool bool_specific_server = false;
   //string server_name = "localhost";
   int num_command = 10, key_len = 3;
+
   // Parse the command line options:
   int o;
   while ((o = getopt(argc, argv, "p:d:c:l:hts")) != -1) {
@@ -312,13 +312,32 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
 
-  dataGenerator dataGen;
+  // load info of Server IP address from 'DHTConfig'
+  vector<string> server_list;
+  int num_server;
+  ifstream in("DHTConfig");
+  if (in.is_open())
+  {
+    for (string str; getline(in, str) ;)
+    { 
+      if (str.find("IP")!=str.npos)
+      {
+        str = str.substr(str.find("=")+1);
+        boost::split(server_list, str, boost::is_any_of(","));
+      }
+    }
+    in.close();
+  }
+  num_server = server_list.size();
+  server_list.push_back("localhost");
+
+  dataGenerator dataGen(num_server);
   /**********************************************/
   /* test mode: only communicate with localhost */
   /**********************************************/
   if (test_mode)      
   {  
-    DHTClient clientTest(port, server_list[0]);
+    DHTClient clientTest(port, server_list[num_server]); // localhost
     
     while(true){
       data = dataGen.command_test(); 
@@ -338,7 +357,7 @@ int main(int argc, char *argv[]) {
     int put_or_get, serverID;
 
     vector<DHTClient> clientNode;
-    for (int i = 1; i < server_list.size(); ++i)
+    for (int i = 0; i < num_server; ++i)
     {
       clientNode.push_back(DHTClient(port, server_list[i]));
     }
@@ -353,7 +372,7 @@ int main(int argc, char *argv[]) {
       clientNode[serverID].send_message(data);
     }
 
-    for (int i = 0; i < server_list.size()-1; ++i)
+    for (int i = 0; i < num_server; ++i)
     {
       clientNode[i].close_socket();
     }
