@@ -84,7 +84,7 @@ private:
 
 				response = insert_node_to_hash(plist, data);
 				// cout << response << endl;
-				if (response == "OK")
+				if (response == "OK" || response == "UPDATED")
 				{
 					put_succ++;
 				}

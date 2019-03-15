@@ -350,7 +350,6 @@ int main(int argc, char *argv[]) {
       put_or_get = (rand()%100)+1;
       data = dataGen.command(put_or_get, key_len);
       serverID = dataGen.pickServer();
-      cout << "serverID: " << serverID << endl;
       clientNode[serverID].send_message(data);
     }
 
