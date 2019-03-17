@@ -83,29 +83,13 @@ private:
 			{
 
 				response = insert_node_to_hash(plist, data);
-				// cout << response << endl;
-				if (response == "OK" || response == "UPDATED")
-				{
-					put_succ++;
-				}
-				else if (response == "ERROR")
-				{
-					put_fail++;
-				}
+				(response == "OK" || response == "UPDATED") ? put_succ++ : put_fail++;
 
 			}
 			else if (command == "GET")
 			{
-				// sleep(10);
 				response = get_node_to_hash(plist, data);
-				if (response == "ERROR")
-				{
-					get_fail++;
-				}
-				else
-				{
-					get_succ++;
-				}
+				response == "ERROR" ? get_fail++ : get_succ++;
 			}
 			else if (command == "DEL")
 			{

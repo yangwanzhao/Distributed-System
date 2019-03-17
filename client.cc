@@ -7,6 +7,7 @@
 #include <boost/asio.hpp>
 #include <time.h>
 #include <vector>
+#include <future>
 #define BUF_SIZE 8192
 
 using namespace std;
@@ -41,14 +42,12 @@ public:
     return socket;
   }
 
-  void write_read_buffer(boost::asio::ip::tcp::socket &socket, string data){
+  string write_read_buffer(boost::asio::ip::tcp::socket &socket, string data){
     using namespace std;
     using namespace boost::asio;
 
     // track connection duration, bytes transmitted
     size_t xmitBytes = 0;
-    struct timeval start_time, end_time;
-    gettimeofday(&start_time, nullptr);
 
     //ready to recieve data from server
     size_t recd = 0, position;
@@ -96,24 +95,21 @@ public:
     position = str_buf.find("\n");
     str_buf = str_buf.substr(position+1);
 
-    cout << str_buf << endl;
-    gettimeofday(&end_time, nullptr);
-    // cout << endl
-    // << "Transmitted " << xmitBytes << " bytes in "
-    // << (end_time.tv_sec - start_time.tv_sec) << " seconds" << endl;
+    return str_buf;
+    // cout << str_buf << endl;
   }
 
-  bool send_message(string data){
-    auto starttime = high_resolution_clock::now();
+  string send_message(string data){
+    string str_response;
 
+    auto starttime = high_resolution_clock::now();
     try{
       // auto socket = create_socket(server_name, port);
-      write_read_buffer(socket_, data);
+      str_response = write_read_buffer(socket_, data);
     }catch (std::exception &e){
       std::cerr << e.what() << std::endl;
-      return false;
+      return "IO Error";
     }
-
     auto endtime = high_resolution_clock::now();
 
     duration<double> time_span = duration_cast<duration<double>>(endtime - starttime);
@@ -121,7 +117,7 @@ public:
     // {
     //   latency = latency + time_span;
     // }
-    return true;
+    return str_response;
     // cout << "Time span: " << time_span.count() << endl;
   }
 
@@ -131,6 +127,7 @@ public:
 
 private: 
   ip::tcp::socket socket_;
+  // vector<ip::tcp::socket> socket_2;
   string port_;
   string server_;
 };
@@ -158,38 +155,23 @@ public:
       // PUT\nkey\nvalue
       data = "PUT\n" + key + "\n" + value;
     }
-    // ******* GET *******
-    else if (data == "GET")
+    // ******* GET / DEL *******
+    else if (data == "GET" || data == "DEL")
     {
       cout << "KEY:";
       getline(cin, key);
       // GET\nlength_key\nkey
-      data = "GET\n" + key;
+      data = data + "\n" + key;
     }
-    // ******* DEL *******
-    else if (data == "DEL")
+    // ******* SHOW / INIT *******
+    else if (data == "SHOW" || data == "INIT")
     {
-      cout << "KEY:";
-      getline(cin, key);
-      // DEL\nlength_key\nkey
-      data = "DEL\n" + key;
+      data = data + "\n";
     }
-    // ----------------------- JUST FOR TEST --------------
-    // ******* SHOW *******
-    else if (data == "SHOW")
-    {
-      data = "SHOW\n";
-    }
-    // ******* INIT *******
-    else if (data == "INIT")
-    {
-      data = "INIT\n";
-    }
-    // ----------------------- JUST FOR TEST -------------
     return data;
   }
 
-  string command(int put_or_get, int length_key){
+  string command(bool bool_put_or_get, int length_key){
     int length_value;
     string data, key, value;
     length_value = rand()%5 + 1;
@@ -198,7 +180,7 @@ public:
     value = random_str(length_value);
     key_ = key;
 
-    if (put_or_get <= 40)
+    if (bool_put_or_get)
     { //put
       data = "PUT\n" + key + "\n" + value;
       cout << "PUT  " << key << ": ";
@@ -354,7 +336,8 @@ int main(int argc, char *argv[]) {
   /**********************************************/
   else      
   {  
-    int put_or_get, serverID;
+    bool bool_put_or_get; // true: put; false: get
+    int serverID;
 
     vector<DHTClient> clientNode;
     for (int i = 0; i < num_server; ++i)
@@ -362,14 +345,24 @@ int main(int argc, char *argv[]) {
       clientNode.push_back(DHTClient(port, server_list[i]));
     }
     
-    srand((unsigned)time(NULL)); 
+    srand((unsigned)time(NULL));
     
     for (int i = 0; i < num_command; ++i)
     {
-      put_or_get = (rand()%100)+1;
-      data = dataGen.command(put_or_get, key_len);
+      bool_put_or_get = (rand()%100+1) <= 40;
+      data = dataGen.command(bool_put_or_get, key_len);
       serverID = dataGen.pickServer();
-      clientNode[serverID].send_message(data);
+
+      if (bool_put_or_get)
+      {
+        // future<string> fut1 = async(clientNode[serverID].send_message,"wantLock");
+        cout << clientNode[serverID].send_message(data) << endl;
+        clientNode[(serverID+1)%num_server].send_message(data);
+      }
+      else{
+        cout << clientNode[serverID].send_message(data) << endl;
+      }
+      
     }
 
     for (int i = 0; i < num_server; ++i)
