@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <libgen.h>
-#include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 #include <unistd.h>
 #include <boost/asio.hpp>
@@ -22,11 +21,37 @@ class DHTClient
 {
 public:
   // DHTClient():socket_(create_socket("localhost", "40300")){socket_.close();}
-  DHTClient(string port, string server):port_(port),server_(server),socket_(create_socket(server, port)){}
+  DHTClient(bool test_mode){   // initialize with DHTClient
+    ifstream in("DHTConfig");
+    if (in.is_open())
+    {
+      for (string str; getline(in, str) ;)
+      { 
+        if (!test_mode && str.find("IP")!=str.npos)
+        {
+          str = str.substr(str.find("=")+1);
+          boost::split(server_list_, str, boost::is_any_of(","));
+        }
+        if (str.find("PORT")!=str.npos)
+        {
+          port_ = str.substr(str.find("=")+1);
+        }
+      }
+      in.close();
+    }
+    num_server_ = test_mode ? 0 : server_list_.size();
+    if (test_mode)
+    {
+      server_list_.push_back("localhost");
+      socket_.push_back(create_socket(server_list_[0], port_));
+    }
+    for (int i = 0; i < num_server_; ++i)
+    {
+      socket_.push_back(create_socket(server_list_[i], port_));
+    }
+  }
 
   boost::asio::ip::tcp::socket create_socket(std::string hostname, std::string port) {
-    using namespace boost::asio;
-
     io_service io_service;
     ip::tcp::resolver resolver(io_service);
     ip::tcp::resolver::query query(hostname, port);
@@ -96,19 +121,18 @@ public:
     str_buf = str_buf.substr(position+1);
 
     return str_buf;
-    // cout << str_buf << endl;
   }
 
-  string send_message(string data){
+  string send_message(string data, int index = 0){
     string str_response;
 
     auto starttime = high_resolution_clock::now();
     try{
       // auto socket = create_socket(server_name, port);
-      str_response = write_read_buffer(socket_, data);
+      str_response = write_read_buffer(socket_[index], data);
     }catch (std::exception &e){
       std::cerr << e.what() << std::endl;
-      return "IO Error";
+      return "RW Error";
     }
     auto endtime = high_resolution_clock::now();
 
@@ -122,14 +146,23 @@ public:
   }
 
   void close_socket(){
-    socket_.close();
+
+    for (int i = 0; i < server_list_.size(); ++i)
+    {
+      send_message("SHOW\n", i);
+      socket_[i].close();
+    }
+  }
+
+  int get_num_server_(){
+    return num_server_;
   }
 
 private: 
-  ip::tcp::socket socket_;
-  // vector<ip::tcp::socket> socket_2;
+  vector<ip::tcp::socket> socket_;
+  vector<string> server_list_;
+  int num_server_;
   string port_;
-  string server_;
 };
 
 class dataGenerator
@@ -160,7 +193,7 @@ public:
     {
       cout << "KEY:";
       getline(cin, key);
-      // GET\nlength_key\nkey
+      // GET\nkey
       data = data + "\n" + key;
     }
     // ******* SHOW / INIT *******
@@ -230,6 +263,9 @@ public:
     return id_server;
   }
 
+  string get_key_(){
+    return key_;
+  }
 private:
   string key_;
   int num_server_;
@@ -294,42 +330,23 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
 
-  // load info of Server IP address from 'DHTConfig'
-  vector<string> server_list;
-  int num_server;
-  ifstream in("DHTConfig");
-  if (in.is_open())
-  {
-    for (string str; getline(in, str) ;)
-    { 
-      if (str.find("IP")!=str.npos)
-      {
-        str = str.substr(str.find("=")+1);
-        boost::split(server_list, str, boost::is_any_of(","));
-      }
-    }
-    in.close();
-  }
-  num_server = server_list.size();
-  server_list.push_back("localhost");
-
-  dataGenerator dataGen(num_server);
+  int numServer;
+  DHTClient client(test_mode);
+  numServer = client.get_num_server_();
+  dataGenerator dataGen(numServer);
   /**********************************************/
   /* test mode: only communicate with localhost */
   /**********************************************/
   if (test_mode)      
   {  
-    DHTClient clientTest(port, server_list[num_server]); // localhost
-    
     while(true){
       data = dataGen.command_test(); 
       if (data == "EXIT")
       {
         break;
       } 
-      clientTest.send_message(data);
+      cout << "SERVER: " << client.send_message(data) << endl;;
     }
-    clientTest.close_socket();
   }
   /**********************************************/
   /********** communicate with the DHT **********/
@@ -338,43 +355,55 @@ int main(int argc, char *argv[]) {
   {  
     bool bool_put_or_get; // true: put; false: get
     int serverID;
-
-    vector<DHTClient> clientNode;
-    for (int i = 0; i < num_server; ++i)
-    {
-      clientNode.push_back(DHTClient(port, server_list[i]));
-    }
+    string keyID;
     
     srand((unsigned)time(NULL));
     
     for (int i = 0; i < num_command; ++i)
     {
-      bool_put_or_get = (rand()%100+1) <= 40;
+      bool_put_or_get = (rand()%100+1) <= 400;
       data = dataGen.command(bool_put_or_get, key_len);
       serverID = dataGen.pickServer();
+      keyID = dataGen.get_key_();
 
       if (bool_put_or_get)
       {
+        string str1, str2;
         // future<string> fut1 = async(clientNode[serverID].send_message,"wantLock");
-        cout << clientNode[serverID].send_message(data) << endl;
-        clientNode[(serverID+1)%num_server].send_message(data);
+
+        while(true){
+          str1 = client.send_message("LOCK\n" + keyID, serverID);
+          str2 = client.send_message("LOCK\n" + keyID, (serverID+1)%numServer);
+
+          cout << serverID << ": " << str1 << " " << (serverID+1)%numServer << " : " << str2 << endl;
+
+          if ( str1 == "GO" && str2 == "GO")
+          {
+            cout << client.send_message(data, serverID) << endl;
+            cout << client.send_message(data, (serverID+1)%numServer) << endl;
+            client.send_message("UNLOCK\n" + keyID, serverID);
+            client.send_message("UNLOCK\n" + keyID, (serverID+1)%numServer);
+            break;
+          }
+          else if (str1 == "GO"){
+            client.send_message("UNLOCK\n" + keyID, serverID);
+          }
+          else if (str2 == "GO"){
+            client.send_message("UNLOCK\n" + keyID, (serverID+1)%numServer);
+          }
+        }
+        
       }
       else{
-        cout << clientNode[serverID].send_message(data) << endl;
+        cout << client.send_message(data, serverID) << endl;
       }
       
-    }
-
-    for (int i = 0; i < num_server; ++i)
-    {
-      clientNode[i].close_socket();
     }
     // cout << "Total Time: " << latency.count() << endl;
   }
 
+  client.close_socket();
   return 0;
-
-
 }
 
 

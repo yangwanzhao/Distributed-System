@@ -73,6 +73,7 @@ private:
 			stream << buffer_[i];
 		}
 		data = stream.str();
+		cout << "data: " << data << endl;
     // ********** de-protocol ***********
 		position = data.find("\n");
 		if (position <= data.length())
@@ -81,21 +82,30 @@ private:
 			data = data.substr(position+1);
 			if (command == "PUT")
 			{
-
 				response = insert_node_to_hash(plist, data);
 				(response == "OK" || response == "UPDATED") ? put_succ++ : put_fail++;
-
+				cout << "PUT_SUCC = " << put_succ << "\tPUT_FAIL = " << put_fail 
+					 << "\tGET_SUCC = " << get_succ << "\tGET_FAIL = " << get_fail << endl;
 			}
 			else if (command == "GET")
 			{
 				response = get_node_to_hash(plist, data);
 				response == "ERROR" ? get_fail++ : get_succ++;
+				cout << "PUT_SUCC = " << put_succ << "\tPUT_FAIL = " << put_fail 
+					 << "\tGET_SUCC = " << get_succ << "\tGET_FAIL = " << get_fail << endl;
 			}
 			else if (command == "DEL")
 			{
 				response = delete_node_to_hash(plist, data);
 			}
-
+			else if (command == "LOCK")
+			{
+				response = lock_node_to_hash(data);
+			}
+			else if (command == "UNLOCK")
+			{
+				response = unlock_node_to_hash(data);
+			}
       // ----------------------- JUST FOR TEST -------------
 			else if (command == "SHOW")
 			{
@@ -118,9 +128,6 @@ private:
 			buffer_[i] = data[i];
 		}
 		length = data.length();
-
-
-		cout << "PUT_SUCC = " << put_succ << "\tPUT_FAIL = " << put_fail << "\tGET_SUCC = " << get_succ << "\tGET_FAIL = " << get_fail << endl;
 
 		return length;
 	}
@@ -166,7 +173,6 @@ int main(int argc, char *argv[])
 
 	//Get port as size_t from argv
 	size_t port = 40300, num_thread = 3;
-
 	ifstream in("DHTConfig");
 	if (in.is_open())
 	{

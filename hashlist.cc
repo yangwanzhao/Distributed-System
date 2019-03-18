@@ -14,7 +14,6 @@
 
 using namespace std;
 vector<mutex> mtx(HASH_NUM_MAX);
-
 /*initial a hashlist*/
 pHash_List init_hash_list(void)
 {
@@ -54,43 +53,59 @@ string insert_node_to_hash(pHash_List plist, string data)
   ptail->id   = id;
   ptail->key   = key;
   ptail->value = value;
-  
-  while(true)
+  sleep(1);
+  if( NULL == plist->list[id]->next )
   {
-    if (mtx[id].try_lock())
-    {
-      if( NULL == plist->list[id]->next )
-      {
-        plist->list[id]->next = ptail;
-        response = "OK";
-        mtx[id].unlock();
-        return response;
-      }
-
-      pre = plist->list[id]->next;
-      while( pre )
-      {
-        if (pre->key == ptail->key)
-        {
-          // cout << pre->key << " and "<< ptail->key << endl;
-          pre->value = ptail->value;
-          response = "UPDATED";
-          mtx[id].unlock();
-          return response;
-        }
-        p = pre;
-        pre = pre->next;   
-      }
-      p->next = ptail;
-      response = "OK";
-
-      mtx[id].unlock();
-      break;
-    }
-    
+    plist->list[id]->next = ptail;
+    response = "OK";
+    return response;
   }
+
+  pre = plist->list[id]->next;
+  while( pre )
+  {
+    if (pre->key == ptail->key)
+    {
+          // cout << pre->key << " and "<< ptail->key << endl;
+      pre->value = ptail->value;
+      response = "UPDATED";
+      return response;
+    }
+    p = pre;
+    pre = pre->next;   
+  }
+  p->next = ptail;
+  response = "OK";
   return response;
 }
+
+string lock_node_to_hash(string data)
+{
+  u32 id;
+  string key;
+  key = data;
+
+  hash<string> h;
+  size_t n = h(key);
+  id = n % HASH_NUM_MAX;
+  if (mtx[99].try_lock())
+  {
+    return "GO";
+  }
+  return "OCCUPIED";
+}
+
+string unlock_node_to_hash(string data)
+{
+  u32 id;
+  hash<string> h;
+  size_t n = h(data);
+  id = n % HASH_NUM_MAX;
+  mtx[99].unlock();
+  return "RELEASED";
+}
+
+
 
 /*delete a node by id*/
 string delete_node_to_hash(pHash_List plist,string data)
@@ -159,7 +174,7 @@ string delete_node_to_hash(pHash_List plist,string data)
 string get_node_to_hash(pHash_List plist, string data)
 {
   Node *psea;
-  u32 id, position;
+  u32 id;
   string key, response;
 
   key = data;

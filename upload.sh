@@ -7,7 +7,9 @@ IPstr=${line#*=}
 IPaddr=(${IPstr//,/ })  # () means convert to a list
 for node in ${IPaddr[@]}; do
 	echo $node
-	# scp -i $identity_file *.* DHTConfig ubuntu@$node:~/Distributed-System
-	scp -i $identity_file client.cc ubuntu@$node:~/Distributed-System
+	scp -i $identity_file *.* DHTConfig ubuntu@$node:~/Distributed-System
+	# scp -i $identity_file client.cc ubuntu@$node:~/Distributed-System
+	# scp -i $identity_file server.cc ubuntu@$node:~/Distributed-System
+	# scp -i $identity_file hashlist.cc ubuntu@$node:~/Distributed-System
 done
 

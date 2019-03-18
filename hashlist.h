@@ -7,7 +7,8 @@
  
 //typedef struct _Node * pNode;
 //typedef struct _Hash_Header * pHash_Header;
- 
+extern int aaa;
+
 typedef struct _Node
 {
 	std::string key;
@@ -32,7 +33,8 @@ pHash_List init_hash_list(void);
 //void init_all_node_header(void);
 std::string insert_node_to_hash(pHash_List plist,std::string data);
 std::string delete_node_to_hash(pHash_List plist,std::string data);
-std::string reduce_node_to_hash(pHash_List plist,std::string data);
+std::string lock_node_to_hash(std::string data);
+std::string unlock_node_to_hash(std::string data);
 void print_hash(pHash_List plist);
 std::string get_node_to_hash(pHash_List plist, std::string data);
 void free_all_hash(pHash_List plist); 
